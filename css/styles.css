@@ -1,0 +1,21 @@
+body {
+    background-color: greenyellow;
+}
+
+table {
+    width: 200px;
+    height: 200px;
+    border: 1px solid black;
+    background-color: #04AA6D;
+    text-align: center;
+    table-layout: fixed
+}
+
+td {
+    /* width: 10px;
+    height: 10px; */
+    border: 1px solid black;
+}
+td:empty::after{
+    content: "\00a0";
+}
