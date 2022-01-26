@@ -1,3 +1,4 @@
+
 body {
     background-color: greenyellow;
 }
@@ -18,4 +19,8 @@ td {
 }
 td:empty::after{
     content: "\00a0";
+}
+
+.gameMassage {
+    font-size: 40px;
 }

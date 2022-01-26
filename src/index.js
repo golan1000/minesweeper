@@ -5,27 +5,32 @@ const MINE = "💣";
 console.log("test");
 var gBoard = [];
 
-var gLevel = [];
-var gGame = [];
+var gLevel = {
+  SIZE: 3,
+  MINES: 3
+};
+var gGame = {
+  isOn: true,
+  shownCount: 0,
+  markedCount: 0,
+  secsPassed: 0
+};
 
 function initGame() {
   console.log("game loaded");
-  //   disableMenuDisplay();
+  disableMenuDisplay();
   gGame = {
-    isOn: false,
+    isOn: true,
     shownCount: 0,
     markedCount: 0,
     secsPassed: 0
   };
-  gLevel = {
-    SIZE: 4,
-    MINES: 2
-  };
 
   gBoard = buildBoard();
 
-  gBoard[2][2].isMine = true;
-  gBoard[3][3].isMine = true;
+//   gBoard[2][2].isMine = true;
+//   gBoard[3][3].isMine = true;
+  putMines(gBoard);
 
   console.table(gBoard);
 
@@ -33,11 +38,30 @@ function initGame() {
   renderBoard(gBoard);
 }
 
+function setBoardSize(size, mines) {
+  gLevel = {
+    SIZE: size,
+    MINES: mines
+  };
+
+  initGame();
+
+  console.log(
+    "set board size to",
+    size,
+    " * ",
+    size,
+    " with ",
+    mines,
+    " mines"
+  );
+}
+
 function disableMenuDisplay() {
-  //   document.oncontextmenu = function (e) {
-  //     var evt = new Object({ keyCode: 93 });
-  //     e.preventDefault();
-  //   };
+  document.oncontextmenu = function (e) {
+    var evt = new Object({ keyCode: 93 });
+    e.preventDefault();
+  };
 }
 function buildBoard() {
   var board = [];
@@ -48,10 +72,11 @@ function buildBoard() {
     isMine: false,
     isMarked: false
   };
-  for (var i = 0; i < 5; i++) {
+  for (var i = 0; i < gLevel.SIZE; i++) {
     board[i] = [];
-    for (var j = 0; j < 5; j++) {
+    for (var j = 0; j < gLevel.SIZE; j++) {
       // currCell = mat[i][j];
+      console.log("i j ",i,j);
       board[i].push({
         minesAroundCount: 0,
         isShown: false,
@@ -60,9 +85,49 @@ function buildBoard() {
       });
     }
   }
+  console.log("board.length",board.length)
   return board;
 }
 
+function putMines(board) {
+  var shuffledCells = randomMatCells(board);
+  console.log({ shuffledCells });
+  var currShuffledCell;
+  var mineI;
+  var mineJ;
+  for (var i = 0; i < gLevel.MINES; i++) {
+    console.log("pop", i);
+    //get out a cell
+    currShuffledCell = shuffledCells.pop();
+
+    console.log({ currShuffledCell });
+
+    //set the x y
+    mineI = currShuffledCell.i;
+    mineJ = currShuffledCell.j;
+    gBoard[mineI][mineJ].isMine = true;
+  }
+}
+
+function randomMatCells(board) {
+  var allCells = [];
+  var shuffledCells = [];
+  for (var i = 0; i < board.length; i++) {
+    for (var j = 0; j < board[0].length; j++) {
+      allCells.push({
+        i: i,
+        j: j
+      });
+    }
+  }
+  console.log("allCells.length", allCells.length);
+
+  console.log({ allCells });
+
+  shuffledCells = shuffleArray(allCells);
+  console.log({ shuffledCells });
+  return shuffledCells;
+}
 function helpFunction() {
   var currCell;
   for (var i = 0; i < gBoard.length; i++) {
@@ -114,17 +179,27 @@ function countCellNegs(cell, location) {
   return mineCouner;
 }
 
+//in the end, to show win (including bombs)
+function setAllCellsToShown(board) {
+  for (var i = 0; i < board.length; i++) {
+    for (var j = 0; j < board.length; j++) {
+      board[i][j].isMarked = false;
+      board[i][j].isShown = true;
+    }
+  }
+  renderBoard(board);
+}
 function renderBoard(board) {
   var lineStr = "";
   var currCell;
   for (var i = 0; i < board.length; i++) {
-    for (var j = 0; j < board.length; j++) {
+    for (var j = 0; j < board[0].length; j++) {
       currCell = gBoard[i][j];
       //   console.log(currCell.minesAroundCount)
 
       lineStr += "" + currCell.minesAroundCount + "   ";
     }
-    console.log(lineStr);
+    // console.log(lineStr);
     lineStr = "";
   }
 
@@ -133,7 +208,7 @@ function renderBoard(board) {
   htmlStr += "<table>";
   for (var i = 0; i < board.length; i++) {
     htmlStr += "<tr>";
-    for (var j = 0; j < board.length; j++) {
+    for (var j = 0; j < board[0].length; j++) {
       currCell = gBoard[i][j];
 
       currMines = currCell.minesAroundCount;
@@ -148,22 +223,31 @@ function renderBoard(board) {
 }
 
 function cellClicked(elCell, i, j) {
+  if (!gGame.isOn) return;
   console.log("clicked", i, j);
   var currCell = gBoard[i][j];
 
+  if (currCell.isMarked) {
+    cellMarked(elCell, i, j);
+    return;
+  }
   if (currCell.isShown) return;
   if (currCell.isMine) {
     gameOver("game over: you hit a mine");
+    currCell.isShown = true;
+    renderBoard(gBoard);
     return;
   }
 
+  //if mines = 0
   if (currCell.minesAroundCount === 0) {
     expandShown(gBoard, elCell, i, j);
-  } else {
-    revealOneCell(elCell, i, j);
   }
+  //if mines > 0
+  revealOneCell(elCell, i, j);
 
   renderBoard(gBoard);
+  if (checkGameOver()) gameOver("you won!");
 }
 
 function revealOneCell(elCell, i, j) {
@@ -174,14 +258,19 @@ function revealOneCell(elCell, i, j) {
 }
 
 function gameOver(msg) {
+  gGame.isOn = false;
+  setAllCellsToShown(gBoard);
   console.log(msg);
+  setGameMassage(msg);
 }
 function cellMarked(elCell, i, j) {
+  if (!gGame.isOn) return;
   var currCell = gBoard[i][j];
   if (currCell.isShown) return;
 
   currCell.isMarked = !currCell.isMarked;
   console.log("marked cell action", i, j, currCell.isMarked);
+  renderBoard(gBoard);
   return false;
   e.preventDefault();
 }
@@ -191,7 +280,10 @@ function eventcellMarkedFunc(event) {
     console.log("this is a right click");
     var currObj = event.target;
     console.log("dataset ", "i", currObj.dataset.i, "j", currObj.dataset.j);
-    cellMarked(currObj, currObj.dataset.i, currObj.dataset.j);
+
+    var i = currObj.dataset.i;
+    var j = currObj.dataset.j;
+    cellMarked(currObj, i, j);
 
     event.preventDefault();
   }
@@ -203,10 +295,10 @@ function checkGameOver() {
     for (var j = 0; j < gBoard.length; j++) {
       currCell = gBoard[i][j];
 
-      if (!currCell.isShown) return false;
+      if (!currCell.isShown && !currCell.isMine) return false;
 
-      if (currCell.isMine === true && !currCell.isMarked) return false;
-      console.log(currCell);
+      //   if (currCell.isMine === true && !currCell.isMarked) return false;
+      //   console.log(currCell);
     }
   }
   return true;
@@ -273,19 +365,58 @@ function expandShownREGULAR(board, elCell, i, j) {
 }
 
 function renderCell(cell, i, j) {
-  var elmToPresent = EMPTY;
+  var elmToPresent;
 
+  elmToPresent = cellSymbol(cell);
+  //   console.log({ elmToPresent });
+  return `<td class="mine" onclick="cellClicked(this,${i},${j})" onmousedown="eventcellMarkedFunc(event)" data-i="${i}" data-j="${j}">${elmToPresent}</td>`;
+}
+
+function cellSymbol(cell) {
   //if hidden , return cell with nothing inside
-  if (!cell.isShown)
-    return `<td class="mine" onclick="cellClicked(this,${i},${j})" onmousedown="eventcellMarkedFunc(event)" data-i="${i}" data-j="${j}"></td>`;
 
-  // //if NOT hidden, can be mine,flag,empty,number
-  // switch (elmToPresent) {
-  //     case :
-  // }
+  if (cell.isMarked) return MARK;
 
-  if (cell.isShown) {
-    console.log("cell shown!", i, j);
-    return `<td class="mine"         onclick="cellClicked(this,${i},${j})" onmousedown="eventcellMarkedFunc(event)" data-i="${i}" data-j="${j}">${cell.minesAroundCount}</td>`;
+  if (!cell.isShown) return "";
+
+  if (cell.isMine) return MINE;
+
+  if (!isNaN(cell.minesAroundCount)) return cell.minesAroundCount;
+}
+
+function setGameMassage(msg) {
+  var massageEl = document.querySelector(".gameMassage");
+
+  massageEl.innerText = msg;
+}
+
+function getRegularNumbersArray(num) {
+  var numbers = [];
+  for (var i = 1; i < num; i++) {
+    numbers.push(i);
   }
+  return numbers;
+}
+
+//return shuffled array
+//V
+function shuffleArray(arr) {
+  var newArr = [];
+  var randNum;
+  var currValue;
+  var oldLength = arr.length;
+  for (var i = 0; i < oldLength; i++) {
+    randNum = getRandomIntInclusive(0, arr.length - 1);
+    currValue = arr[randNum];
+
+    arr.splice(randNum, 1);
+    newArr.push(currValue);
+  }
+  return newArr;
+}
+
+function getRandomIntInclusive(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1) + min); //The maximum is inclusive and the minimum is inclusive
 }
