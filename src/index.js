@@ -1,6 +1,6 @@
 "use strict";
 const EMPTY = " ";
-const MARK = '🚩'
+const MARK = "🚩";
 const MINE = "💣";
 console.log("test");
 var gBoard = [];
@@ -8,16 +8,9 @@ var gBoard = [];
 var gLevel = [];
 var gGame = [];
 
-// var cell = {
-//     minesAroundCount: 0,
-//     isShown: false,
-//     isMine: false,
-//     isMarked: false
-//   }
-
 function initGame() {
   console.log("game loaded");
-  disableMenuDisplay();
+  //   disableMenuDisplay();
   gGame = {
     isOn: false,
     shownCount: 0,
@@ -41,10 +34,10 @@ function initGame() {
 }
 
 function disableMenuDisplay() {
-  document.oncontextmenu = function (e) {
-    var evt = new Object({ keyCode: 93 });
-    e.preventDefault();
-  };
+  //   document.oncontextmenu = function (e) {
+  //     var evt = new Object({ keyCode: 93 });
+  //     e.preventDefault();
+  //   };
 }
 function buildBoard() {
   var board = [];
@@ -188,7 +181,7 @@ function cellMarked(elCell, i, j) {
   if (currCell.isShown) return;
 
   currCell.isMarked = !currCell.isMarked;
-  console.log("marked cell action", i, j,currCell.isMarked);
+  console.log("marked cell action", i, j, currCell.isMarked);
   return false;
   e.preventDefault();
 }
@@ -280,17 +273,19 @@ function expandShownREGULAR(board, elCell, i, j) {
 }
 
 function renderCell(cell, i, j) {
+  var elmToPresent = EMPTY;
 
-    var elmToPresent = EMPTY;
+  //if hidden , return cell with nothing inside
+  if (!cell.isShown)
+    return `<td class="mine" onclick="cellClicked(this,${i},${j})" onmousedown="eventcellMarkedFunc(event)" data-i="${i}" data-j="${j}"></td>`;
 
-    //if hidden , return cell with nothing inside
-    if (!cell.isShown) return `<td class="mine" onclick="cellClicked(this,${i},${j})" onmousedown="eventcellMarkedFunc(event)" data-i="${i}" data-j="${j}"></td>`;
+  // //if NOT hidden, can be mine,flag,empty,number
+  // switch (elmToPresent) {
+  //     case :
+  // }
 
-    //if NOT hidden, can be mine,flag,empty,number
-    if (cell.)
   if (cell.isShown) {
     console.log("cell shown!", i, j);
-    return `<td class="mine" onclick="cellClicked(this,${i},${j})" onmousedown="eventcellMarkedFunc(event)" data-i="${i}" data-j="${j}">${cell.minesAroundCount}</td>`;
+    return `<td class="mine"         onclick="cellClicked(this,${i},${j})" onmousedown="eventcellMarkedFunc(event)" data-i="${i}" data-j="${j}">${cell.minesAroundCount}</td>`;
   }
-  
 }
