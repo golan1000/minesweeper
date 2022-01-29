@@ -2,7 +2,7 @@
 const EMPTY = " ";
 const MARK = "🚩";
 // const MINE = "💣";
-const MINE = `<div class="mineDiv"><img class="mineBomb" src="../img/mine.png" /></div>`;
+const MINE = `<div class="mineDiv"><img class="mineBomb" src="img/mine.png" /></div>`;
 console.log("test");
 
 var gTimerID = null;
