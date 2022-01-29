@@ -1,29 +1,83 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/styles.css" />
 
-    <title>Document</title>
-</head>
-<body onload="initGame()">
+    <title>Mine Sweeper</title>
+  </head>
+  <body onload="initGame()">
+    <div class="bodyDiv">
+      <div class="topContainer">
+        <span class="livesContainer">
+          <span>Lives:</span>
+          <span class="liveCounter">0</span>
+        </span>
+        <span class="hintContainer">
+          <img
+            alt="hint"
+            class="hintImg"
+            onclick="hintPressed(this)"
+            src="img/bulb-on.png"
+          />
+          <img
+            alt="hint"
+            class="hintImg"
+            onclick="hintPressed(this)"
+            src="img/bulb-on.png"
+          />
+          <img
+            alt="hint"
+            class="hintImg"
+            onclick="hintPressed(this)"
+            src="img/bulb-on.png"
+          />
+        </span>
+        <span class="timerContainer">
+          <span>Time:</span>
+          <span class="timer">0</span>
+        </span>
+      </div>
 
-    test bla
-    <div class="gameMassage">Text</div>
+      <div class="buttonsContainer">
+        <button class="safeClick buttonDesign" onclick="safeClick(this)">
+          safe
+        </button>
+        <button class="sevenBoomButton buttonDesign" onclick="sevenBoomMode()">
+          Seven Boom
+        </button>
+        <button class="safeClick12 buttonDesign" onclick="undoLastAction()">
+          undo!
+        </button>
+      </div>
 
-    <label>Board Size</label>
-    <button onclick="setBoardSize(5,3)">5X5</button>
-    <button onclick="setBoardSize(8,10)">8X8</button>
-    <button onclick="setBoardSize(10,20)">10X10</button>
-
-    <div class="gameContainer">
-
+      <div class="smileyDiv">
+        <img class="smileyStatus" alt="smiley status" src="img/happy.png" />
+      </div>
+      <div class="sizeBtnDiv">
+        <button onclick="setBoardLevel(5,3)" class="sizeBtn">5X5</button>
+        <button onclick="setBoardLevel(8,10)" class="sizeBtn">8X8</button>
+        <button onclick="setBoardLevel(10,20)" class="sizeBtn">10X10</button>
+      </div>
+      <div class="manualDiv">
+        <button class="safeClick1 buttonDesign" onclick="setMinesManual(this)">
+          set mines manually
+        </button>
+        <button class="safeClick12 buttonDesign" onclick="playManualGame(this)">
+          play manually
+        </button>
+      </div>
+      <div class="bestScore">&nbsp;</div>
+      <div class="gameMassage">&nbsp;</div>
+      <div class="gameContainer">
+        <script src="src/index.js"></script>
+      </div>
     </div>
-
-    <script src="src/index.js">
-    </script>
-</body>
+    <footer>
+        <span>Golan Itzhak</span>
+    </footer>
+  </body>
 </html>

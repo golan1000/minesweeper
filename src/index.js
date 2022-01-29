@@ -1,12 +1,26 @@
 "use strict";
 const EMPTY = " ";
 const MARK = "🚩";
-const MINE = "💣";
+// const MINE = "💣";
+const MINE = `<div class="mineDiv"><img class="mineBomb" src="../img/mine.png" /></div>`;
 console.log("test");
-var gBoard = [];
 
+var gTimerID = null;
+var gHintMode = false;
+var gHintCellTryCount = 0;
+var gTimer = null;
+var gFirstClick = 0;
+var gBoard = [];
+var gLives = [];
+var gBestScore;
+var gSafeCount
+var gSevenBoomStatus = false;
+var gManualGamePutMines = false
+var gManualGame = false;
+
+var gActions = [];
 var gLevel = {
-  SIZE: 3,
+  SIZE: 5,
   MINES: 3
 };
 var gGame = {
@@ -15,6 +29,8 @@ var gGame = {
   markedCount: 0,
   secsPassed: 0
 };
+
+
 
 function initGame() {
   console.log("game loaded");
@@ -25,20 +41,45 @@ function initGame() {
     markedCount: 0,
     secsPassed: 0
   };
+  if (gSevenBoomStatus !== true) {
+    gFirstClick = 0;
+  }
 
+  gLives = 3;
+  gTimer = null;
+  gTimerID = null;
+  gSafeCount = 3;
+  updateSmiley("happy");
+
+  updateLivesCounter();
+  gActions = [];
+  if (gManualGame !== true) {
   gBoard = buildBoard();
+}
+  // updateTimerEl(0)
+  // console.table(gBoard);
 
-//   gBoard[2][2].isMine = true;
-//   gBoard[3][3].isMine = true;
-  putMines(gBoard);
-
-  console.table(gBoard);
-
-  setMinesNegsCount(gBoard);
   renderBoard(gBoard);
+  updateScoreEl();
 }
 
-function setBoardSize(size, mines) {
+function sevenBoomMode() {
+  gSevenBoomStatus = !gSevenBoomStatus;
+
+  if (gSevenBoomStatus) {
+    gSevenBoomStatus = true;
+    gFirstClick = 1;
+
+    initGame();
+    putMinesSevenBoom(gBoard);
+    setMinesNegsCount(gBoard);
+  } else {
+    gSevenBoomStatus = false;
+  }
+  console.log("seven boom mode clicked!");
+  toggleSevenBoomEl();
+}
+function setBoardLevel(size, mines) {
   gLevel = {
     SIZE: size,
     MINES: mines
@@ -55,6 +96,201 @@ function setBoardSize(size, mines) {
     mines,
     " mines"
   );
+}
+
+function toggleSevenBoomEl() {
+  var sevenBoomButton = document.querySelector(".sevenBoomButton");
+  var buttonText;
+  if (gSevenBoomStatus) buttonText = "SevenBoom on";
+  else buttonText = "SevenBoom off";
+
+  console.log(buttonText);
+  sevenBoomButton.innerText = buttonText;
+  console.log("seven boom status is", gSevenBoomStatus);
+}
+
+function pushAction(action,i,j,cellEl) {
+
+  var actionHelp = {
+    action: action,
+    i: i,
+    j: j,
+    cellEl:cellEl,
+  }
+  gActions.push(actionHelp);
+
+}
+
+function undoLastAction() {
+
+  if (gActions.length === 0) return
+
+  var lastAction = gActions.pop();
+  var currCellEl;
+  var currI;
+  var currJ;
+  var currCell;
+  if (lastAction.action === 'press') {
+
+    currI = lastAction.i;
+    currJ = lastAction.j;
+    // currCellEl = getCellElByLocation({currI,currJ})
+
+    currCellEl = lastAction.cellEl;
+
+    console.log(currCellEl);
+    if (currCellEl === null) return
+    
+    
+    currCell = gBoard[currI][currJ];
+
+    currCell.isShown = false;
+
+    if (currCell.isMine) gLives++;
+
+    renderCellbyElm(currCellEl,currI,currJ)
+  }
+
+}
+
+function putMinesSevenBoom(board) {
+  var currShuffledCell;
+  var mineI;
+  var mineJ;
+  var counter = 0;
+  for (var i = 0; i < board.length; i++) {
+    for (var j = 0; j < board.length; j++) {
+      if (counter % 7 === 0) {
+        gBoard[i][j].isMine = true;
+      }
+      counter++;
+    }
+  }
+}
+
+function putMines(board, PosNotToPlace) {
+  var shuffledCells = randomMatCells(board);
+  // console.log({ shuffledCells });
+  var currShuffledCell;
+  var mineI;
+  var mineJ;
+  for (var i = 0; i < gLevel.MINES; i++) {
+    // console.log("pop", i);
+
+    //get out a cell
+    currShuffledCell = shuffledCells.pop();
+
+    // console.log({ currShuffledCell });
+
+    //set the x y
+    mineI = currShuffledCell.i;
+    mineJ = currShuffledCell.j;
+
+    //check if the place where we want to put mine is the place
+    //of the first click position, if yes, we iterate again
+    if (PosNotToPlace.i === mineI && PosNotToPlace.j === mineJ) {
+      // console.log("found pos, will not put mine here", PosNotToPlace);
+      continue;
+    }
+
+    //put mine
+    gBoard[mineI][mineJ].isMine = true;
+    // }
+  }
+}
+
+function isBestScoreUpdated() {
+  var bestScore = parseInt(getBestScore());
+
+  var timerEl = document.querySelector(".timer");
+
+  var playerScore = parseInt(timerEl.innerText);
+
+  console.log("bestScore playerScore ", bestScore, playerScore);
+  if (playerScore === 0) return false;
+
+  if (bestScore < playerScore) return false;
+
+  console.log("found better (smaller) score than ", bestScore);
+  console.log("found!!", playerScore);
+
+  alert("You set a record for this level! :)");
+  setBestScore(playerScore);
+  updateScoreEl();
+}
+
+function hintPressed(hintEl) {
+  if (!gGame.isOn) return;
+  if (gFirstClick === 0) return;
+
+  gHintCellTryCount = 0;
+  gHintMode = true;
+
+  hintEl.src = 'img/bulb-off.png'
+  console.log(
+    "hint mode on, your next move on unrevealed cell will show the content of the cells next to him"
+  );
+}
+function setBestScore(score) {
+  console.log("score=", score);
+  const scoreObj = {
+    best: score
+  };
+  console.log("scoreObj", scoreObj);
+  console.log("gLevel.SIZE", gLevel.SIZE);
+  window.localStorage.setItem("Level" + gLevel.SIZE, JSON.stringify(scoreObj));
+}
+function updateScoreEl() {
+  var scoreEl = document.querySelector(".bestScore")
+
+  var bestScore = getBestScore();
+  if (!bestScore) return;
+  scoreEl.innerText = "Best Score for Level " + gLevel.SIZE + " is " + bestScore;
+}
+function getBestScore() {
+  var level = gLevel.SIZE;
+  var bestScore;
+  var parsedObj;
+  //stringified object
+  var storedLevel = window.localStorage.getItem("Level" + level);
+  // console.log("storedLevel", storedLevel);
+  if (storedLevel) {
+    //make it object from stringify
+    parsedObj = JSON.parse(storedLevel);
+
+    // console.log("parsedObj", parsedObj);
+
+    bestScore = parsedObj.best;
+    // console.log("bestScore", bestScore);
+    return bestScore;
+  }
+
+  return null;
+}
+
+function startTimer() {
+  if (gTimerID !== null) return;
+  console.log("timer is not set, this is the first time");
+  gTimer = 0;
+  gTimerID = setInterval(updateTimerEl, 1000);
+}
+
+function stopTimer() {
+  clearInterval(gTimerID);
+}
+
+function updateTimerEl(time) {
+  var timerEl = document.querySelector(".timer");
+  if (!time) {
+    gTimer += 1;
+  }
+
+  if (time === 0) {
+    console.log("inside timer 2");
+    gTimer = 0;
+  }
+
+  timerEl.innerText = gTimer;
 }
 
 function disableMenuDisplay() {
@@ -76,7 +312,7 @@ function buildBoard() {
     board[i] = [];
     for (var j = 0; j < gLevel.SIZE; j++) {
       // currCell = mat[i][j];
-      console.log("i j ",i,j);
+      // console.log("i j ", i, j);
       board[i].push({
         minesAroundCount: 0,
         isShown: false,
@@ -85,28 +321,8 @@ function buildBoard() {
       });
     }
   }
-  console.log("board.length",board.length)
+  // console.log("board.length", board.length);
   return board;
-}
-
-function putMines(board) {
-  var shuffledCells = randomMatCells(board);
-  console.log({ shuffledCells });
-  var currShuffledCell;
-  var mineI;
-  var mineJ;
-  for (var i = 0; i < gLevel.MINES; i++) {
-    console.log("pop", i);
-    //get out a cell
-    currShuffledCell = shuffledCells.pop();
-
-    console.log({ currShuffledCell });
-
-    //set the x y
-    mineI = currShuffledCell.i;
-    mineJ = currShuffledCell.j;
-    gBoard[mineI][mineJ].isMine = true;
-  }
 }
 
 function randomMatCells(board) {
@@ -120,12 +336,9 @@ function randomMatCells(board) {
       });
     }
   }
-  console.log("allCells.length", allCells.length);
-
-  console.log({ allCells });
 
   shuffledCells = shuffleArray(allCells);
-  console.log({ shuffledCells });
+
   return shuffledCells;
 }
 function helpFunction() {
@@ -179,6 +392,12 @@ function countCellNegs(cell, location) {
   return mineCouner;
 }
 
+function updateSmiley(mood) {
+  var smileyStatusEl = document.querySelector(".smileyStatus");
+
+  // console.log(`img/${mood}.png`);
+  smileyStatusEl.src = `img/${mood}.png`;
+}
 //in the end, to show win (including bombs)
 function setAllCellsToShown(board) {
   for (var i = 0; i < board.length; i++) {
@@ -212,7 +431,7 @@ function renderBoard(board) {
       currCell = gBoard[i][j];
 
       currMines = currCell.minesAroundCount;
-      htmlStr += renderCell(currCell, i, j);
+      htmlStr += getCellHtmlBySymbol(i, j);
     }
     htmlStr += "</tr>";
   }
@@ -222,64 +441,322 @@ function renderBoard(board) {
   gameContainerEl.innerHTML = htmlStr;
 }
 
+//render only one cell using HTML Element
+function renderCellbyElm(cellEl, i, j) {
+  var elmToPresentHtmlStr;
+
+  elmToPresentHtmlStr = getCellHtmlBySymbol(i, j);
+  //   console.log({ elmToPresent });
+
+  cellEl.innerHTML = elmToPresentHtmlStr;
+}
+
+//return html string for Rendertable and Rendercell by symbol of model
+function getCellHtmlBySymbol(i, j) {
+  var elmToPresent;
+
+  elmToPresent = getCellSymbol(i, j);
+  //   console.log({ elmToPresent });
+  return `<td class="cell" id="${i},${j}" onclick="cellClicked(this,${i},${j})" onmousedown="eventCellMarkedFunc(event)" data-i="${i}" data-j="${j}">${elmToPresent}</td>`;
+}
+
+//return which symbol is on top, by order
+//first mark should be shown
+//then isshown=true
+//then mine
+//then number
+//then empty
+function getCellSymbol(i, j) {
+  var currCell = gBoard[i][j];
+
+  // console.log("currCell.isShown",currCell.isShown)
+
+  //if gHintMode true we must show him anyway by his type
+  if (currCell.isMarked && !gHintMode) return MARK;
+
+  if (!currCell.isShown) return "";
+
+  if (currCell.isMine) return MINE;
+
+  if (!isNaN(currCell.minesAroundCount)) return currCell.minesAroundCount;
+}
+
+function toggleHintCells(i, j) {
+  var currentLocation;
+  var currCellEl;
+  var marked;
+  //helper object
+  var location = { i: i, j: j };
+
+  //goes 3X3 matrix of the center cell
+  for (var iIdx = location.i - 1; iIdx <= location.i + 1; iIdx++) {
+    for (var jIdx = location.j - 1; jIdx <= location.j + 1; jIdx++) {
+      //ignore cells that are out of the bounderies
+      if (
+        iIdx < 0 ||
+        jIdx < 0 ||
+        iIdx >= gBoard.length ||
+        jIdx >= gBoard[0].length
+      )
+        continue;
+
+      console.log("bla");
+      currentLocation = { i: iIdx, j: jIdx };
+      currCellEl = getCellElByLocation(currentLocation);
+
+      if (currCellEl) {
+        if (gBoard[iIdx][jIdx].isShown === false) {
+          //reveal cell for 1 sec
+          console.log("reveal only one cell ", iIdx, jIdx);
+          var currCell = gBoard[iIdx][jIdx];
+
+          currCell.isShown = true;
+
+          renderCellbyElm(currCellEl, iIdx, jIdx);
+
+          //timer to hide the cell again , after 1 sec
+          if (currCell.isMarked) hideCellOneSec(currCellEl, iIdx, jIdx, marked);
+          else hideCellOneSec(currCellEl, iIdx, jIdx, marked);
+        }
+      }
+    }
+  }
+}
+
+//timer to hide the cell again , after 1 sec (and keep it's marked status)
+function hideCellOneSec(currCellEl, i, j, marked) {
+  setTimeout(function () {
+    console.log("test");
+    console.log("hide only one cell ", i, j);
+    var currCell = gBoard[i][j];
+
+    currCell.isShown = false;
+
+    currCell.isMark = marked;
+
+    renderCellbyElm(currCellEl, i, j);
+  }, 1000);
+}
+
+function safeClick(buttonEl) {
+  if (!gGame.isOn) return;
+  if (gFirstClick === 0) return;
+  if (gSafeCount === 0) return
+
+  
+  var location = getRandSafeClickCell();
+  var cellEl;
+  if (location === null){
+    console.log("no more uncovered cells that are not mines")
+    return;
+  } 
+  cellEl = getCellElByLocation(location);
+
+  if (cellEl === null) return;
+  cellEl.classList.toggle("marked");
+
+  gSafeCount--;
+
+  setTimeout(function () {
+    cellEl.classList.toggle("marked");
+  }, 3000);
+}
+
+//return an cell with no mine in it , that you can click on
+//does not return mine,marked or shown cell
+//else return null
+
+function getRandSafeClickCell() {
+  var currCell = 0;
+
+  var goodCells = [];
+  for (var i = 0; i < gBoard.length; i++) {
+    for (var j = 0; j < gBoard[0].length; j++) {
+
+      currCell = gBoard[i][j];
+
+      if (currCell.isMine || currCell.isShown || currCell.isMark) continue;
+
+      
+      var location = { i: i, j: j };
+
+      goodCells.push(location);
+    }
+  }
+  goodCells = shuffleArray(goodCells)
+  currCell = goodCells.pop()
+
+  return currCell
+}
+function setMinesManual(buttonEl) {
+  gManualGamePutMines = true;
+  initGame();
+  gBoard = buildBoard();
+  gManualGame = true;
+  
+}
+function playManualGame(buttonEl) {
+  gManualGamePutMines = false;
+  setMinesNegsCount(gBoard);
+  gFirstClick = 1;
+}
 function cellClicked(elCell, i, j) {
   if (!gGame.isOn) return;
   console.log("clicked", i, j);
   var currCell = gBoard[i][j];
 
+
+  if (gManualGame === true && gManualGamePutMines === true) {
+    currCell.isMine = true;
+    return
+  }
+  if (gFirstClick === 0 && gManualGame === false) {
+    startTimer();
+    var PosNotToPlace;
+    console.log("first click");
+    //where not to put mine, becuase it's the first click
+    PosNotToPlace = { i: i, j: j };
+
+    gFirstClick = 1;
+    putMines(gBoard, PosNotToPlace);
+    setMinesNegsCount(gBoard);
+  }
+
+  if (gHintMode && gHintCellTryCount === 0) {
+    gHintCellTryCount++;
+    toggleHintCells(i, j);
+    gHintMode = false;
+    return;
+  }
   if (currCell.isMarked) {
     cellMarked(elCell, i, j);
     return;
   }
-  if (currCell.isShown) return;
+  if (currCell.isShown) {
+    console.log("already shown!");
+    return;
+  }
   if (currCell.isMine) {
-    gameOver("game over: you hit a mine");
-    currCell.isShown = true;
-    renderBoard(gBoard);
+    if (gLives === 0) {
+      gameOver("no more lives, game over!");
+      updateSmiley("mad");
+      return;
+    }
+    console.log({ gLives });
+    gLives--;
+    updateLivesCounter();
+    revealOneCell(elCell, i, j)
+    // renderCellbyElm(elCell, i, j);
+    console.log("you hit a mine ,only ", gLives, " lives left");
+
+    if (checkGameOver()) {
+      goodGameOver();
+    }
     return;
   }
 
   //if mines = 0
   if (currCell.minesAroundCount === 0) {
+    console.log("expand cell!!");
     expandShown(gBoard, elCell, i, j);
   }
   //if mines > 0
   revealOneCell(elCell, i, j);
 
-  renderBoard(gBoard);
-  if (checkGameOver()) gameOver("you won!");
+  if (checkGameOver()) {
+    goodGameOver();
+  }
 }
 
+function hideOneCell(elCell, i, j) {
+  var currCell = gBoard[i][j];
+
+  currCell.isShown = false;
+
+  renderCellbyElm(elCell, i, j);
+  console.log("hide only one cell");
+}
+function updateLivesCounter() {
+  var liveCounterEl = document.querySelector(".liveCounter");
+  var counter = 0;
+  for (var i = 0; i < gLives; i++) {
+    counter++;
+  }
+  liveCounterEl.innerText = counter;
+  return counter;
+}
 function revealOneCell(elCell, i, j) {
   var currCell = gBoard[i][j];
+
   currCell.isShown = true;
 
+  renderCellbyElm(elCell, i, j);
   console.log("reveal only one cell");
+
+  pushAction("press",i,j,elCell)
 }
 
 function gameOver(msg) {
   gGame.isOn = false;
+  stopTimer();
+
   setAllCellsToShown(gBoard);
   console.log(msg);
   setGameMassage(msg);
 }
+
+
+// function copyMat(source,target) {
+//   var mat = [];
+
+//   for(var i=0;i<source.length;i++) {
+//     mat[i].push([])
+
+//     for (var j=0;j<)
+//   }
+// }
+
 function cellMarked(elCell, i, j) {
+  if (gFirstClick === 0) return;
+
   if (!gGame.isOn) return;
+
   var currCell = gBoard[i][j];
+
   if (currCell.isShown) return;
 
   currCell.isMarked = !currCell.isMarked;
   console.log("marked cell action", i, j, currCell.isMarked);
-  renderBoard(gBoard);
-  return false;
-  e.preventDefault();
+
+  renderCellbyElm(elCell, i, j);
+  if (checkGameOver()) {
+    goodGameOver();
+  }
 }
 
-function eventcellMarkedFunc(event) {
+function goodGameOver() {
+  updateSmiley("won");
+  if (isBestScoreUpdated()) {
+    alert(
+      "you have the best score! we put you in the hall of fame for this level"
+    );
+    console.log(
+      "you have the best score! we put you in the hall of fame for this level"
+    );
+  }
+  gameOver("you won!");
+}
+
+//check if right mouse is clicked and call "cellmarked"
+function eventCellMarkedFunc(event) {
+  if (!gGame.isOn) return;
+  if (gFirstClick === 0) {
+    startTimer();
+    return;
+  }
   if (event.which === 3) {
-    console.log("this is a right click");
     var currObj = event.target;
-    console.log("dataset ", "i", currObj.dataset.i, "j", currObj.dataset.j);
+    // console.log("dataset ", "i", currObj.dataset.i, "j", currObj.dataset.j);
 
     var i = currObj.dataset.i;
     var j = currObj.dataset.j;
@@ -297,6 +774,9 @@ function checkGameOver() {
 
       if (!currCell.isShown && !currCell.isMine) return false;
 
+      if (!currCell.isShown && currCell.isMine && !currCell.isMarked)
+        return false;
+
       //   if (currCell.isMine === true && !currCell.isMarked) return false;
       //   console.log(currCell);
     }
@@ -305,10 +785,13 @@ function checkGameOver() {
 }
 
 //if mindesAroundCount ===0 , set isShown true to all cells near him
-function expandShown(board, elCell, i, j) {
+function expandShownOLDGOOD(board, elCell, i, j) {
   console.log("empty cell, reveal all serroundings");
+  var currentLocation;
+  var currCellEl;
   //if it's not empty cell, return
   if (board[i][j].minesAroundCount !== 0) {
+    console.log("there are bombs around him");
     return;
   }
 
@@ -327,18 +810,40 @@ function expandShown(board, elCell, i, j) {
       )
         continue;
 
-      console.log("reveal", "i", iIdx, "j", jIdx);
+      console.log("------reveal", "i", iIdx, "j", jIdx);
 
-      gBoard[iIdx][jIdx].isShown = true;
+      currentLocation = { i: iIdx, j: jIdx };
+      currCellEl = getCellElByLocation(currentLocation);
+
+      if (currCellEl) {
+        console.log(currCellEl);
+        revealOneCell(currCellEl, iIdx, jIdx);
+      }
+      // gBoard[iIdx][jIdx].isShown = true;
+      // console.log("shown=",gBoard[iIdx][jIdx].isShown)
+      // console.log(elCell)
+      // renderCellbyElm(elCell,iIdx, jIdx);
     }
   }
 }
 
-function expandShownREGULAR(board, elCell, i, j) {
-  var currCell = board[i][j];
-  var mineCouner = 0;
+function expandShown(board, elCell, i, j) {
+  console.log("empty cell, reveal all serroundings");
+  var currentLocation;
+  var currCellEl;
+  //if it's not empty cell, return
+  if (board[i][j].minesAroundCount !== 0) {
+    console.log("there are bombs around him");
+    return;
+  }
 
+  //make the main cell shown an show him
+  board[i][j].isShown = true;
+  revealOneCell(elCell, i, j);
+
+  //helper object
   var location = { i: i, j: j };
+
   //goes 3X3 matrix of the center cell
   for (var iIdx = location.i - 1; iIdx <= location.i + 1; iIdx++) {
     for (var jIdx = location.j - 1; jIdx <= location.j + 1; jIdx++) {
@@ -351,37 +856,67 @@ function expandShownREGULAR(board, elCell, i, j) {
       )
         continue;
 
-      //if it's the same cell (center) continue
-      if (iIdx === location.i && jIdx === location.j) continue;
+      console.log("---reveal cell next to him", "i", iIdx, "j", jIdx);
 
-      currCell = gBoard[iIdx][jIdx];
-      console.log("check", "i", iIdx, "j", jIdx);
-      if (currCell.isMine) {
-        console.log("ismine!", "i", iIdx, "j", jIdx);
-        mineCouner++;
+      currentLocation = { i: iIdx, j: jIdx };
+      currCellEl = getCellElByLocation(currentLocation);
+
+      if (currCellEl) {
+        //do again expandShown on the current cell if it is ZERO
+        if (
+          gBoard[iIdx][jIdx].minesAroundCount === 0 &&
+          gBoard[iIdx][jIdx].isShown === false
+        ) {
+          //revealOneCell(currCellEl, iIdx, jIdx);
+          //console.log("the cell next to him is 0 too and not shwon!...lets start expandShown on him",iIdx,jIdx)
+
+          // renderBoard(gBoard)
+          expandShown(board, currCellEl, iIdx, jIdx);
+        } else {
+          //reveal the current cell which is not ZERO, it's a regular number
+          revealOneCell(currCellEl, iIdx, jIdx);
+        }
       }
     }
   }
 }
 
-function renderCell(cell, i, j) {
-  var elmToPresent;
+function getCellElByLocation(location) {
+  var searchStr = "" + location.i + "," + location.j;
 
-  elmToPresent = cellSymbol(cell);
-  //   console.log({ elmToPresent });
-  return `<td class="mine" onclick="cellClicked(this,${i},${j})" onmousedown="eventcellMarkedFunc(event)" data-i="${i}" data-j="${j}">${elmToPresent}</td>`;
+  // console.log("searchStr", searchStr);
+  var targetCell = document.querySelector(`[id='${searchStr}']`);
+  return targetCell;
 }
+function getCellByLocationOLD(location) {
+  var cellElements = document.querySelectorAll(".cell");
 
-function cellSymbol(cell) {
-  //if hidden , return cell with nothing inside
+  console.log("all found td=", cellElements.length);
+  var currCellEl;
 
-  if (cell.isMarked) return MARK;
+  console.log("looking for", location);
+  for (var i = 0; i < cellElements.length; i++) {
+    // if (confirm("bla")) {
+    // } else {
+    //   return;
+    // }
+    currCellEl = cellElements[i];
+    console.log("current data set", currCellEl.dataset.i, currCellEl.dataset.j);
 
-  if (!cell.isShown) return "";
+    //current i j from current cell element
+    var iIdx = +currCellEl.dataset.i;
+    var jIdx = +currCellEl.dataset.j;
 
-  if (cell.isMine) return MINE;
+    //console.log("current iIdx jIdx", iIdx, jIdx);
 
-  if (!isNaN(cell.minesAroundCount)) return cell.minesAroundCount;
+    if (iIdx === location.i && jIdx === location.j) {
+      console.log("found");
+      console.log(currCellEl);
+      return currCellEl;
+    }
+  }
+  console.log("not found element !");
+  return null;
 }
 
 function setGameMassage(msg) {
